@@ -1,0 +1,18 @@
+# Library dependencies for python code 
+# You need to install these with `pip install -r requirements.txt` before you can run this.
+
+## neural language models 
+torch torchvision
+transformers
+allennlp
+
+
+## file type dependency
+json
+pickle
+numpy
+scikit-learn
+nltk
+spacy
+matplotlib
+pandas
