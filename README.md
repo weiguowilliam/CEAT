@@ -17,6 +17,10 @@ To install requirements:
 pip install -r requirements.txt
 ```
 
+## Supplemental material
+
+We listed the details of Word Embedding Association Test and the words we used in validation of CEAT, IBD and UIBD in supp.pdf.
+
 
 ## Dataset
 [Reddit Comment Dataset 2014](https://files.pushshift.io/reddit/comments/) is used. Here's the link of raw json comment files.
@@ -28,6 +32,7 @@ select * from `fh-bigquery.reddit_comments.20014` limit 10
 ```
 
 After you download the comments, the comments files should be stored as pickle file in dictionary. The keys are the target and attribute words. The values are lists. Each list contains comments that contain the key word.
+
 
 
 ## Generate Contextualized Word Embeddings
@@ -47,6 +52,19 @@ python generate_cwt.py
 ## Contextualized Embedding Association Test (CEAT)
 
 Run the script to generate effect size, p value for N=10000 (by default) time of sampling.
+
+For CEAT(C11~C10):
+
+```
+python ceat.py
+```
+
+For CEAT(I1~I4):
+
+```
+python ceat_inter.py
+```
+
 Effect sizes, p values of each test are stored as list in seperate pickle files. 
 The pickle file is named as: {model_name}_weat{test_number}_pvalue.pickle, {model_name}_weat{test_number}_effectsize.pickle
 
