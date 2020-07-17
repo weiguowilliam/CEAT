@@ -1,6 +1,6 @@
 # Contextualized Word Embeddings Contain Emergent Intersectional Biases in a Contextualized Distribution of Human-like Bias Scores
 
-This repository is the official implementation of [Contextualized Word Embeddings Contain Emergent Intersectional Biases in a Contextualized Distribution of Human-like Bias Scores](https://arxiv.org/). 
+This repository is the official implementation of [Contextualized Word Embeddings Contain Emergent Intersectional Biases in a Contextualized Distribution of Human-like Bias Scores](https://arxiv.org/abs/2006.03955). 
 
 ## Requirements
 
