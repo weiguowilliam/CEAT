@@ -25,6 +25,14 @@ We listed the details of Word Embedding Association Test and the words we used i
 ## Dataset
 [Reddit Comment Dataset 2014](https://files.pushshift.io/reddit/comments/) is used. Here's the link of raw json comment files.
 
+After downloading all comment json file, you can use the python file we provide.
+
+```
+python generate_txt.py
+```
+
+It extract the comment, clean the raw text and save it as a pickle file.
+
 Besides the raw json files provided by the link, we can also use [Google BigQuery](https://cloud.google.com/bigquery) to inquiry the needed comments. Here's a sample big query script to select 10 comments in 2014.
 
 ```{sql}
@@ -32,6 +40,8 @@ select * from `fh-bigquery.reddit_comments.20014` limit 10
 ```
 
 After you download the comments, the comments files should be stored as pickle file in dictionary. The keys are the target and attribute words. The values are lists. Each list contains comments that contain the key word.
+
+
 
 
 
@@ -46,8 +56,10 @@ Each pickle file is a dictionary whose keys are the words in tests and values ar
 The generated contextualized word embeddings files is named as weat{test_number}_{model_name}.pickle
 
 ```
-python generate_cwt.py
+python generate_ebd_{model_name}.py
 ```
+
+There're four models we used: Bert, GPT, GPT2 and elmo. You will find four files in code folder.
 
 ## Contextualized Embedding Association Test (CEAT)
 
@@ -59,16 +71,11 @@ For CEAT(C11~C10):
 python ceat.py
 ```
 
-For CEAT(I1~I4):
-
-```
-python ceat_inter.py
-```
 
 Effect sizes, p values of each test are stored as list in seperate pickle files. 
 The pickle file is named as: {model_name}_weat{test_number}_pvalue.pickle, {model_name}_weat{test_number}_effectsize.pickle
 
-The returned values are Permuted Effect Size (PES), Probability of Significant Effect Size(PSES) of each test. 
+The returned values are Combined Effect Size (CES), P value of each test. 
 
 Users can use matplotlib library to draw the distribution based on sampling effect sizes and p values.
 
@@ -80,14 +87,5 @@ To detect intersectional biases of African American females (AF) and Latino Amer
 python ibd.py
 ```
 
-It prints the accuracy of detection with AF and LF in multiple thresholds.
-
-To detect unique intersectional biases of African American females (AF) and Latino American females (LF)
-
-```
-python uibd.py
-```
-
-It prints the accuracy of detection with AF and LF in multiple thresholds.
 
 

@@ -1,14 +1,37 @@
+import os
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
+import torch
+
+# import spacy
+from transformers import BertModel, BertTokenizer
+from transformers import GPT2Tokenizer, GPT2LMHeadModel,GPT2Model
+# from allennlp.commands.elmo import ElmoEmbedder
+from transformers import OpenAIGPTTokenizer, OpenAIGPTModel
+import logging
+logging.getLogger('transformers.tokenization_utils').disabled = True
 import numpy as np
-from sklearn.metrics.pairwise import cosine_similarity
+import json
 import pickle
-import scipy.stats
-import time as t
-import pickle
-import random
 import datetime
+# import spacy
+# from allennlp.commands.elmo import ElmoEmbedder
+torch.cuda.is_available()
 
 
+tokenizer_gpt2 = GPT2Tokenizer.from_pretrained('gpt2')
+model_gpt2 = GPT2LMHeadModel.from_pretrained('gpt2', output_hidden_states=True)
+model_gpt2.eval()
+model_gpt2.to('cuda')
 
+tokenizer_bert = BertTokenizer.from_pretrained('bert-base-cased')
+model_bert = BertModel.from_pretrained('bert-base-cased')
+model_bert.eval()
+model_bert.to('cuda')
+
+tokenizer_gpt = OpenAIGPTTokenizer.from_pretrained('openai-gpt')
+model_gpt = OpenAIGPTModel.from_pretrained('openai-gpt')
+model_gpt.eval()
+model_gpt.to('cuda')
 
 # weat 1
 flowers = ['aster', 'clover', 'hyacinth', 'marigold', 'poppy', 'azalea', 'crocus', 'iris', 'orchid', 'rose', 'bluebell', 'daffodil', 'lilac', 'pansy', 'tulip', 'buttercup', 'daisy', 'lily', 'peony', 'violet', 'carnation', 
@@ -136,157 +159,91 @@ em_bias_forlf = ['rich', 'intelligent', 'arrogant', 'status', 'blond', 'racist',
 lf_unique_bias = ['feisty','curvy','cook','promiscuous','sexy','maids']
 em_unique_bias_forlf = ['rich', 'tall', 'intelligent', 'assertive', 'arrogant', 'successful']
 
-
-weat_groups = [
-[flowers,insects,pleasant,unpleasant], # 1
-[instruments, weapons, pleasant, unpleasant], #2
-[european_3,african_3,pleasant_3,unpleasant_3], #3
-[european_4,african_4,pleasant_3,unpleasant_3], #4
-[european_4,african_4,pleasant_5,unpleasant_5],#5
-[male,female,career,family], #6
-[math,arts,male_term,female_term],#7
-[science,arts_8,male_term_8,female_term_8],#8
-[mental_disease,physical_disease,temporary,permanent],#9
-[young_name,old_name,pleasant_5,unpleasant_5],#10
-    [african_female,european_male,af_bias,em_bias_foraf], #af-inter
-    [african_female,european_male,af_unique_bias,em_unique_bias_foraf], #af-emerg
-    [mexican_female,european_male,lf_bias,em_bias_forlf],#lf-inter
-    [mexican_female,european_male,lf_unique_bias,em_unique_bias_forlf]# lf-emerg
-]
-
-
-def associate(w,A,B):
-    return cosine_similarity(w.reshape(1,-1),A).mean() - cosine_similarity(w.reshape(1,-1),B).mean()
-
-def difference(X,Y,A,B):
-    # return np.sum(np.apply_along_axis(associate,1,X,A,B)) - np.sum(np.apply_along_axis(associate,1,Y,A,B))
-
-    return np.sum([associate(X[i,:],A,B) for i in range(X.shape[0])]) - np.sum([associate(Y[i,:],A,B) for i in range(Y.shape[0])])
-
-def effect_size(X,Y,A,B):
-    # delta_mean = np.mean(np.apply_along_axis(associate,1,X,A,B)) - np.mean(np.apply_along_axis(associate,1,Y),A,B)
-    delta_mean =  np.mean([associate(X[i,:],A,B) for i in range(X.shape[0])]) - np.mean([associate(Y[i,:],A,B) for i in range(Y.shape[0])])
-
-    # s = np.apply_along_axis(associate,1,np.concatenate((X,Y),axis=0),A,B)
-    XY = np.concatenate((X,Y),axis=0)
-    s = [associate(XY[i,:],A,B) for i in range(XY.shape[0])]
-
-    std_dev = np.std(s,ddof=1)
-    var = std_dev**2
-
-    return delta_mean/std_dev, var
-
-def inn(a_huge_key_list):
-    L = len(a_huge_key_list)
-    i = np.random.randint(0, L)
-    return a_huge_key_list[i]
-
-
-def sample_statistics(X,Y,A,B,num = 100):
-    XY = np.concatenate((X,Y),axis=0)
-   
-    def inner_1(XY,A,B):
-        X_test_idx = np.random.choice(XY.shape[0],X.shape[0],replace=False)
-        Y_test_idx = np.setdiff1d(list(range(XY.shape[0])),X_test_idx)
-        X_test = XY[X_test_idx,:]
-        Y_test = XY[Y_test_idx,:]
-        return difference(X_test,Y_test,A,B)
-    
-    s = [inner_1(XY,A,B) for i in range(num)]
-
-    return np.mean(s), np.std(s,ddof=1)
-
-def p_value(X,Y,A,B,num=100):
-    m,s = sample_statistics(X,Y,A,B,num)
-    d = difference(X,Y,A,B)
-    p = 1 - scipy.stats.norm.cdf(d,loc = m, scale = s)
-    return p
-
-def ceat_meta(weat_groups = weat_groups, model='bert',test=1,N=10000):
-    nm = "ceat_race_{}_vector.pickle".format(model)
-    weat_dict = pickle.load(open(nm,'rb'))
-    # nm_1 = "name_{}_vector_new.pickle".format(model)
-    # name_dict = pickle.load(open(nm_1,'rb'))  
-
-    e_lst = [] #effect size
-    v_lst = [] #variance
-
-    len_list = [len(weat_groups[test-1][i]) for i in range(4)]
-
-    for i in range(N):
-
-
-
-        X = np.array([weat_dict[wd][np.random.randint(0,len(weat_dict[wd]))] for wd in weat_groups[test-1][0]])
-        Y = np.array([weat_dict[wd][np.random.randint(0,len(weat_dict[wd]))] for wd in weat_groups[test-1][1]])
-        A = np.array([weat_dict[wd][np.random.randint(0,len(weat_dict[wd]))] for wd in weat_groups[test-1][2]])
-        B = np.array([weat_dict[wd][np.random.randint(0,len(weat_dict[wd]))] for wd in weat_groups[test-1][3]])
-        e,v = effect_size(X,Y,A,B)
-        e_lst.append(e)
-        v_lst.append(v)
-
-    e_nm = "/Users/ceatpro/Desktop/wefat/data/meta_data/{0}_{1}_es.pickle".format(model,test)
-    v_nm = "/Users/ceatpro/Desktop/wefat/data/meta_data/{0}_{1}_v.pickle".format(model,test)
-    pickle.dump(e_lst,open(e_nm,'wb'))
-    pickle.dump(v_lst,open(v_nm,'wb'))
-    
-    #calculate Q (total variance)
-    e_ary = np.array(e_lst)
-    w_ary = 1/np.array(v_lst)
-
-    q1 = np.sum(w_ary*(e_ary**2))
-    q2 = ((np.sum(e_ary*w_ary))**2)/np.sum(w_ary)
-    q = q1 - q2
-
-    df = N - 1
-
-    if q>df:
-        c = np.sum(w_ary) - np.sum(w_ary**2)/np.sum(w_ary)
-        tao_square = (q-df)/c
-        print("tao>0")
+def short_sen(sen,wd):
+    """
+    shorten the raw comment, take only 9 words including the target word
+    """
+    wds = sen.split()
+    wd_idx = wds.index(wd)
+    if len(wds) >=9:
+        if wd_idx < 4:
+            wds_used = wds[:9]
+        elif (len(wds) - wd_idx - 1 < 4):
+            wds_used = wds[-9:]
+        else:
+            wds_used = wds[(wd_idx-4):(wd_idx+4)]
+        new_sen = ' '.join(wds_used)
     else:
-        tao_square = 0
-
-    v_ary = np.array(v_lst)
-    v_star_ary = v_ary + tao_square
-    w_star_ary = 1/v_star_ary
-
-    # calculate combiend effect size, variance
-    pes = np.sum(w_star_ary*e_ary)/np.sum(w_star_ary)
-    v = 1/np.sum(w_star_ary)
-
-    # p-value
-    z = pes/np.sqrt(v)
-    # p_value = 1 - scipy.stats.norm.cdf(z,loc = 0, scale = 1)
-    p_value = scipy.stats.norm.sf(z,loc = 0, scale = 1)
+        new_sen = sen
+    return new_sen
 
 
-    return pes, p_value
 
+def gpt2(wd_lst,out_name):
+    # load
+    sen_dict = pickle.load(open('sen_dic_2.pickle','rb'))
+    wd_idx_dict = {wd:[] for wd in wd_lst}
+    out_dict = {wd:[] for wd in wd_lst}
+    # error_sen_dict = {wd:[] for wd in sen_dict}
 
-if __name__ == '__main__':
-
-    e_lst = []
-    p_lst = []
-    for e in range(1,15):
-        # group = weat_groups[(e - 1)]
-        e_lst.append([])
-        p_lst.append([])
-        print(e)
-        for m in ['elmo','bert','gpt','gpt2']:
-            print(m)
-            print(datetime.datetime.now().strftime("%Y-%m-%d %H:%M"))
-
-            pes,  p_value = ceat_meta(weat_groups = weat_groups, model=m,test=e,N=1000)
-            print("PES is {}:".format(pes))
-            # print("Var is {}:".format(v))
-            print("P-value is {}:".format(p_value))
-            e_lst[e-1].append(pes)
-            # e_lst[e-1].append(v)
-            e_lst[e-1].append(p_value)
-            print(" ")
+    # generate wd index dictionary
+    for wd in wd_lst:
+        current_idx = torch.tensor(tokenizer_gpt2.encode(wd,add_prefix_space=True)).unsqueeze(0).tolist()[0]
+        wd_idx_dict[wd] = current_idx
     
-    e_ary = np.array(e_lst)
-    p_ary = np.array(p_lst)
+    # generate embeddings
+    i = 0
+    for wd in wd_lst:
+        target = wd_idx_dict[wd][-1]
+        for idx,sen in enumerate(sen_dict[wd]):
+            i += 1
+            if idx == 1000:
+                break
+            if i%2000 == 0:
+                now = datetime.datetime.now()
+                print(now.strftime("%Y-%m-%d %H:%M:%S"))
+                print(str(i)+' finished.')
+            # try:
+            #     input_ids = torch.tensor(tokenizer_gpt2.encode(sen,add_prefix_space=True)).unsqueeze(0) 
+            #     input_ids = input_ids.to('cuda')
+            #     exact_idx = input_ids.tolist()[0].index(target)
+            #     outputs = model_gpt2(input_ids)
+            #     exact_state_vector = outputs[2][-1][0,int(exact_idx),:].cpu().detach().numpy() 
+            #     out_dict[wd].append(exact_state_vector)
+            # except:
+                # error_sen_dict[wd].append(sen)
+            sen = short_sen(sen,wd)            
+            input_ids = torch.tensor(tokenizer_gpt2.encode(sen,add_prefix_space=True)).unsqueeze(0) 
+            input_ids = input_ids.to('cuda')
+            exact_idx = input_ids.tolist()[0].index(target)
+            outputs = model_gpt2(input_ids)
+            exact_state_vector = outputs[2][-1][0,int(exact_idx),:].cpu().detach().numpy() 
+            out_dict[wd].append(exact_state_vector)            
+    n = 'gpt2_'+out_name+'.pickle'
+    pickle.dump(out_dict,open(n,'wb'))
 
-    np.savetxt("e_1000.csv", e_ary, delimiter=",")
+    # pickle.dump(error_sen_dict,open('gpt2_error_sen.pickle','wb'))
+
+
+
+lst = flowers + insects + pleasant + unpleasant
+
+# now = datetime.datetime.now()
+# print(now.strftime("%Y-%m-%d %H:%M:%S"))
+# bert(lst,'weat1')
+# print("bert finish")
+
+# now = datetime.datetime.now()
+# print(now.strftime("%Y-%m-%d %H:%M:%S"))
+# gpt(lst,'weat1')
+# print("gpt finish")
+
+now = datetime.datetime.now()
+print(now.strftime("%Y-%m-%d %H:%M:%S"))
+gpt2(lst,'weat1')
+print("gpt2 finish")
+
+# now = datetime.datetime.now()
+# print(now.strftime("%Y-%m-%d %H:%M:%S"))
+# elmo(lst,'weat1')
+# print("elmo finish")
