@@ -19,13 +19,25 @@ pip install -r requirements.txt
 
 ## Supplemental material
 
-We listed the details of Word Embedding Association Test and the words we used in validation of CEAT, IBD and UIBD in supp.pdf.
+We listed the details of Word Embedding Association Test and the words we used in validation of CEAT, IBD and UIBD as `supp.pdf` in this codebase.
 
 
 ## Dataset
 [Reddit Comment Dataset 2014](https://files.pushshift.io/reddit/comments/) is used. Here's the link of raw json comment files.
 
+Since the raw dataset is too huge for storage, we provide a pickle file that contains the sentences for our experiment from this huge raw dataset. The link of this data file is in `data.md` file. The pickle file contains a big dictionary file. The dictionary contains all the sentences we need for CEAT.
+
 After downloading all comment json file, you can use the python file we provide.
+
+```
+import pickle
+
+dataset = pickle.load(open('file','rb'))
+
+```
+
+
+If you prefer to download the raw data yourself, we also provide a code file to process the raw data.
 
 ```
 python generate_txt.py
@@ -33,7 +45,9 @@ python generate_txt.py
 
 It extract the comment, clean the raw text and save it as a pickle file.
 
-Besides the raw json files provided by the link, we can also use [Google BigQuery](https://cloud.google.com/bigquery) to inquiry the needed comments. Here's a sample big query script to select 10 comments in 2014.
+Besides the raw json files provided by the link.
+
+Another way is to test with a small sample set. For this task, we can use [Google BigQuery](https://cloud.google.com/bigquery) to inquiry the needed comments. Here's a sample big query script to select 10 comments in 2014.
 
 ```{sql}
 select * from `fh-bigquery.reddit_comments.20014` limit 10
@@ -53,7 +67,7 @@ In this step we generate contextualized word embeddings and store it in pickle f
 
 Each pickle file is a dictionary whose keys are the words in tests and values are a list whose items are 300-d contextualized word embeddings.
 
-The generated contextualized word embeddings files is named as weat{test_number}_{model_name}.pickle
+The generated contextualized word embeddings files should be named as weat{test_number}_{model_name}.pickle
 
 ```
 python generate_ebd_{model_name}.py
@@ -65,7 +79,7 @@ There're four models we used: Bert, GPT, GPT2 and elmo. You will find four files
 
 Run the script to generate effect size, p value for N=10000 (by default) time of sampling.
 
-For CEAT(C11~C10):
+For CEAT(C1~C10):
 
 ```
 python ceat.py
